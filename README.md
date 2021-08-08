@@ -1,9 +1,9 @@
 # fiuba-taller-cplusplus
-Working on the basic for FIUBA Taller 1 with C++
+Working on the C++ basics for FIUBA Taller 1
 
-## How to compile and run the C++ program?
+## How to compile and run a C++ program?
 ```
-g++ -Wall -Wextra -std=c++11 -o myApp main.cpp
+g++ -Wall -Wextra -std=c++11 -o myApp source.cpp
 ```
 
 ## Read from a file
