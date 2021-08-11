@@ -17,7 +17,7 @@ using namespace std;
 
 const char SPACE_SEPARATOR = ' ';
 const int MILLI_SEC_PER_FRAME = 10;
-const double PLAYER_SPEED = 1/1000 * MILLI_SEC_PER_FRAME;
+const double PLAYER_SPEED = 0.01;
 /*
 
 1     s -- 1000 ms
@@ -26,7 +26,8 @@ const double PLAYER_SPEED = 1/1000 * MILLI_SEC_PER_FRAME;
 0.001 s --    1 ms
 */
 const double INCREMENTO = 0.01;
-const double TIME_DIFF = 0.001;
+const double TIME_DIFF_EPSILON = 0.001;
+const double SPACE_DIFF_EPSILON = 0.01;
 
 class Entity {
 public:
@@ -41,21 +42,33 @@ public:
         this->type = type;
         this->level = level;
     };
+    ~Entity() = default;
 
     virtual void mover() {};
-    ~Entity() = default;
+    virtual double getPos() { return this->pos_x; };
 };
 
-class Player : Entity {
+class Player : public Entity {
 public:
+    Player(string id, double pos_x, char type, int level) 
+    : Entity(id, pos_x, type, level) { };
     double dist = 0;
+    bool killed = false;
     void mover() {
         this->dist += PLAYER_SPEED;
+        this->pos_x += PLAYER_SPEED;
+        std::cout << "P: " << this->id << " " << " L:" << this->level << " X: " << this->pos_x << std::endl;
     };
+
+    void kill() {
+        this->killed = true;
+    }
 };
 
-class Enemy : Entity {
+class Enemy : public Entity {
 public:
+    Enemy(string id, double pos_x, char type, int level)
+    : Entity(id, pos_x, type, level) { };
     int size = 1;
     void mover() {};
 };
@@ -96,12 +109,15 @@ Entity * getEntityFromLine(string input){
     int level = stoi(remanente.substr(0, remanente.find(SPACE_SEPARATOR)));
     // std::cout << "level -> " << level << std::endl;
 
-    return new Entity(id, pos_x, type, level);
+    if (type == 'P') {
+       return new Player(id, pos_x, type, level);
+    } else {
+        return new Enemy(id, pos_x, type, level);
+    }
 };
 
-list<Entity *> getEntities() {
+void getEntities(list<Player *> *player, list<Enemy *> *enemies) {
     const std::string ENTITY_FILE_PATH = "entidades.txt";
-    list<Entity *> entidades;
 
     // Declaro un file stream "fstream"
     fstream myFile;
@@ -120,12 +136,14 @@ list<Entity *> getEntities() {
         }
         
         Entity *e = getEntityFromLine(line);
-
-        entidades.push_back(e);
+        if (e->type == 'P') {
+            player->push_back((Player *)e);
+        } else {
+            enemies->push_back((Enemy *)e);
+        }
     }
 
     myFile.close();
-    return entidades;
 };
 
 Command * getCommandFromLine(string input) {
@@ -183,14 +201,41 @@ void sleep (int sleep_time) {
     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
 }
 
-bool areEquals(double a, double b) {
-    return abs(a - b) < TIME_DIFF;
+bool time_areEquals(double a, double b) {
+    return abs(a - b) < TIME_DIFF_EPSILON;
+}
+
+bool space_areEqual(double a, double b) {
+    return abs(a - b) < SPACE_DIFF_EPSILON;
+}
+
+void processCommand(Command *c, list<Player *> players) {
+    for(auto p: players) {
+        if (p->id == c->id) {
+            p->level = c->level;
+        }
+    }
+    std::cout << "Comando ejecutado" << std::endl;
+}
+
+void hit(Player *p, Enemy *e) {
+    if(p->level != e->level) {
+        return;
+    }
+
+    // Hit
+    if(p->pos_x >= e->pos_x && p->pos_x <= (e->pos_x + 1)) {
+        std::cout << "Player " << p->id << " " << p->dist << std::endl;
+        p->kill();
+    }
 }
 
 int main() {
 
     std::cout << "#1 Cargo entidades" << std::endl;
-    list<Entity *> entities = getEntities();
+    list<Player *> players;
+    list<Enemy *> enemies;
+    getEntities(&players, &enemies);
 
     // for(auto e: entities) {
     //     // P15 2.3 P 3
@@ -213,22 +258,26 @@ int main() {
     // Game loop
     while (true)
     {
-        std::cout << "TIME: " << time << std::endl;
+        // std::cout << "TIME: " << time << std::endl;
         
         // processInput();
         // update();
         // render();
 
         for(auto c: commands) {
-            if (areEquals(c->time, time)) {
-                std::cout << "ejectuar comando: " << c->id << std::endl;
+            if (time_areEquals(c->time, time)) {
+                std::cout << "ejectuar comando sobre jugador " << c->id << std::endl;
+                processCommand(c, players);
             }
         }
 
-        for(auto e: entities) {
-            e->mover();
-        }
+        for(auto p: players) {
+            p->mover();
 
+            for(auto e: enemies) {
+                hit(p, e);
+            }
+        }
 
         //std::cout << "TICK" << std::endl;
         sleep(MILLI_SEC_PER_FRAME);
