@@ -1,11 +1,32 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+
 #include "list"
+
+// For the clock
+#include <chrono>
+#include <ctime>
+
+#include <thread>
+
+// abs
+#include <stdlib.h>
 
 using namespace std;
 
-char SPACE_SEPARATOR = ' ';
+const char SPACE_SEPARATOR = ' ';
+const int MILLI_SEC_PER_FRAME = 10;
+const double PLAYER_SPEED = 1/1000 * MILLI_SEC_PER_FRAME;
+/*
+
+1     s -- 1000 ms
+0.1   s --  100 ms
+0.01  s --   10 ms
+0.001 s --    1 ms
+*/
+const double INCREMENTO = 0.01;
+const double TIME_DIFF = 0.001;
 
 class Entity {
 public:
@@ -25,16 +46,17 @@ public:
     ~Entity() = default;
 };
 
-class Personaje : Entity {
+class Player : Entity {
 public:
-    unsigned int distancia = 0;
+    double dist = 0;
     void mover() {
-        this->distancia += 1;
+        this->dist += PLAYER_SPEED;
     };
 };
 
-class Enemigo : Entity {
+class Enemy : Entity {
 public:
+    int size = 1;
     void mover() {};
 };
 
@@ -127,7 +149,6 @@ Command * getCommandFromLine(string input) {
     return new Command(time, id, level);
 };
 
-
 list<Command *> getCommands() {
     const std::string COMMAND_FILE_PATH = "comandos.txt";
     list<Command *> commands;
@@ -154,6 +175,18 @@ list<Command *> getCommands() {
     return commands;
 };
 
+time_t getCurrentTime() {
+    return time(0);
+}
+
+void sleep (int sleep_time) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
+}
+
+bool areEquals(double a, double b) {
+    return abs(a - b) < TIME_DIFF;
+}
+
 int main() {
 
     std::cout << "#1 Cargo entidades" << std::endl;
@@ -173,11 +206,34 @@ int main() {
 
     std::cout << "#3 Actualizar posiciones - En progreso" << std::endl;
 
-    while() {
+    // El juego se actualiza cada x tiempo en segundos
+    // https://gameprogrammingpatterns.com/game-loop.html
+
+    double time = 0;
+    // Game loop
+    while (true)
+    {
+        std::cout << "TIME: " << time << std::endl;
         
+        // processInput();
+        // update();
+        // render();
+
+        for(auto c: commands) {
+            if (areEquals(c->time, time)) {
+                std::cout << "ejectuar comando: " << c->id << std::endl;
+            }
+        }
+
+        for(auto e: entities) {
+            e->mover();
+        }
+
+
+        //std::cout << "TICK" << std::endl;
+        sleep(MILLI_SEC_PER_FRAME);
+        time += INCREMENTO;
     }
-
-
 
     // #4 Procesar resultado
     std::cout << "#4 Procesar resultado - Pendiente" << std::endl;
